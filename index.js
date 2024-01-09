@@ -4,10 +4,14 @@ const cors = require("cors");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const { exec } = require("child_process");
+const bodyParser = require('body-parser');
 
 // middleware
 app.use(cors());
+app.use(bodyParser.json());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+const { generateFile } = require("./generateFile");
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.meftkqt.mongodb.net/?retryWrites=true&w=majority`;
@@ -40,90 +44,7 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
-
-    // for C++
-
-    app.post("/execute-code", async (req, res) => {
-      const { code, runtime } = req.body;
-      console.log({ code, runtime });
-
-      // Validate code (you can implement your own validation logic)
-      if (!isValidCode(code)) {
-        return res.status(400).json({ error: "Invalid code" });
-      }
-
-      // Execute code based on the selected runtime
-      switch (runtime) {
-        case "python":
-          // Execute Python code using Python interpreter
-          // ...
-          break;
-        case "javascript":
-          // Execute JavaScript code using Node.js
-          // ...
-          break;
-        case "go":
-          // Execute Go code using Go runtime
-          // ...
-          break;
-        case "cpp":
-          // Execute C++ code using g++
-          const fs = require("fs");
-
-          // Function to execute C++ code
-          function executeCppCode(code) {
-            // Create a temporary file to store the C++ code
-            fs.writeFileSync("temp.cpp", code);
-
-            return new Promise((resolve, reject) => {
-              // Compile the C++ code using g++
-              exec(
-                "g++ temp.cpp -o temp",
-                (compileErr, compileStdout, compileStderr) => {
-                  if (compileErr) {
-                    reject(`Compilation error: ${compileStderr}`);
-                    return;
-                  }
-
-                  // Execute the compiled code
-                  exec("./temp", (runErr, runStdout, runStderr) => {
-                    if (runErr) {
-                      reject(`Execution error: ${runStderr}`);
-                      return;
-                    }
-
-                    // Return the output of the executed code
-                    resolve(runStdout);
-                  });
-                }
-              );
-            });
-          }
-
-          // Example usage:
-          const cppCode = code; // Assuming 'code' contains the C++ code received from the frontend
-
-          executeCppCode(cppCode)
-            .then((output) => {
-              res.status(200).json({ result: output });
-            })
-            .catch((error) => {
-              res.status(500).json({ error });
-            });
-          break;
-        default:
-          return res.status(400).json({ error: "Invalid runtime choice" });
-      }
-
-      // Return the result of code execution
-      return res.status(200).json({ result });
-    });
-
-    function isValidCode(code) {
-      // Implement your code validation logic here
-      // Ensure the code is complete and valid for execution
-      // Return true/false based on validation
-    }
+    
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
