@@ -4,14 +4,18 @@ const cors = require("cors");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const { exec } = require("child_process");
-const bodyParser = require('body-parser');
+const bodyParser = require("body-parser");
+var compiler = require("compilex");
+const { runInNewContext } = require("vm");
 
 // middleware
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-const { generateFile } = require("./generateFile");
+
+var option = { stats: true };
+compiler.init(option);
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.meftkqt.mongodb.net/?retryWrites=true&w=majority`;
@@ -44,7 +48,52 @@ async function run() {
       const result = await userCollection.insertOne(user);
       res.send(result);
     });
-    
+
+    app.post("/compilecode", function (req, res) {
+      const code = req.body.code;
+      const input = req.body.input || ""; 
+      const lang = req.body.lang; 
+
+      const envData = { OS: "windows" }; 
+
+      if (lang === "Python") {
+        compiler.compilePythonWithInput(envData, code, input, function (data) {
+          res.send(data);
+        });
+      } else if (lang === "C++") {
+        const options = {
+          timeout: 10000,
+        };
+        const envData = {
+          OS: "windows",
+          cmd: "g++", 
+        };
+        
+        compiler.compileCPPWithInput(
+          envData,
+          code,
+          input,
+          options,
+          function (error, data) {
+            if (error) {
+              console.error(error);
+              res.status(500).send('Compilation Error');
+            } else {
+              res.send(data);
+            }
+          }
+        );
+      }
+       else if (lang === "JavaScript") {
+        try {
+          const sandbox = { result: "" };
+          runInNewContext(code, sandbox);
+          res.send(sandbox.result.toString());
+        } catch (error) {
+          res.status(500).send(error.message);
+        }
+      }
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
